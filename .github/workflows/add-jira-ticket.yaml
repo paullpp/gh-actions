@@ -22,8 +22,8 @@ jobs:
           HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
 
           # Get new commits between base and head branches
-          TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
-          # TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+          # TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+          TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
 
           echo $TICKETS
 
