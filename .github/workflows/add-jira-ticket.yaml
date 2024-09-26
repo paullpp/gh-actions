@@ -38,22 +38,26 @@ jobs:
       - uses: actions/github-script@v6
         with:
           script: |
-            const tickets = `${{ steps.extract-tickets.outputs.tickets }}`.trim();
-
-            let commentBody = "The following Jira tickets are referenced in this PR:";
+            const tickets = '${{ steps.extract-tickets.outputs.tickets }}'.trim();
 
             if (tickets) {
               const ticketArray = tickets.split(" ");
-              ticketArray.forEach(ticket => {
-                commentBody += `\n* [${ticket}](https://your-jira-domain.atlassian.net/browse/${ticket})`;
+              let ticketLinks = ticketArray.map(ticket => `* [${ticket}](https://your-jira-domain.atlassian.net/browse/${ticket})`).join('\n');
+
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+              });
+
+              const updatedBody = `${pullRequest.body}\n\nThe following Jira tickets are referenced in this PR:\n${ticketLinks}`;
+
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                body: updatedBody,
               });
             } else {
-              commentBody = "No Jira tickets found in the commit messages.";
+              console.log('No Jira tickets found to add to the PR description.');
             }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody
-            });
