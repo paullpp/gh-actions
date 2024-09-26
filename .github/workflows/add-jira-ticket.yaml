@@ -1,31 +1,30 @@
-name: Add Jira Tickets to PR Description
+name: Add Jira Tickets to PR Comment
 
 on:
   pull_request:
     types: [opened, synchronize]
 
 jobs:
-  update-pr-description:
+  comment:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout repository with full history
+      # Step 1: Check out the repository to access the commit history
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch the full history to access both branches
+         fetch-depth: 0
 
       # Step 2: Extract Jira tickets from commit messages
       - name: Parse Jira ticket numbers from new commits
         id: extract-tickets
         run: |
-          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
-          HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
-
-          # Fetch all branches
-          git fetch --all
+          BASE_BRANCH=${{ github.base_ref }}
 
           # Get new commits between base and head branches
-          TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -oE 'XYZ-[0-9]+' | sort -u | tr '\n' ' ')
+          TICKETS=$(git log origin/$BASE_BRANCH...HEAD --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+          # TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+
+          echo $TICKETS
 
           if [ -z "$TICKETS" ]; then
             echo "No Jira tickets found."
@@ -35,7 +34,7 @@ jobs:
             echo "::set-output name=tickets::$TICKETS"
           fi
 
-      # Step 3: Add Jira ticket links to the PR description
+      # Step 3: Add a comment to the PR with Jira ticket links
       - uses: actions/github-script@v6
         with:
           script: |
