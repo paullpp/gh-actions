@@ -1,35 +1,53 @@
-name: Add Jira Tickets
+name: Add Jira Tickets to PR Comment
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
+    types: [opened, synchronize]
 
 jobs:
-  add-jira-links:
+  comment:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      # Step 1: Check out the repository to access the commit history
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      # Step 2: Extract Jira tickets from commit messages
       - name: Parse Jira ticket numbers from new commits
         id: extract-tickets
         run: |
           BASE_BRANCH=${{ github.event.pull_request.base.ref }}
           HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
-          
+
+          # Get new commits between base and head branches
           TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
 
-      - name: Add comment to PR with Jira ticket links
-        run: |
-          TICKETS="${{ steps.extract-tickets.outputs.tickets }}"
-          COMMENT="The following Jira tickets are referenced in this PR:\n"
-          for TICKET in $TICKETS; do
-            COMMENT="${COMMENT}\n* [${TICKET}](https://your-jira-domain.atlassian.net/browse/${TICKET})"
-          done
-          COMMENT=$(echo -e "$COMMENT")
-          echo "$COMMENT"
-          gh pr comment ${{ github.event.pull_request.number }} --body $COMMENT
-        env:
-          GH_TOKEN: ${{ github.token }}
+          if [ -z "$TICKETS" ]; then
+            echo "No Jira tickets found."
+          else
+            echo "Tickets found: $TICKETS"
+          fi
+
+      # Step 3: Add a comment to the PR with Jira ticket links
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            const tickets = `${{ steps.extract-tickets.outputs.tickets }}`.trim();
+
+            let commentBody = "The following Jira tickets are referenced in this PR:";
+
+            if (tickets) {
+              const ticketArray = tickets.split(" ");
+              ticketArray.forEach(ticket => {
+                commentBody += `\n* [${ticket}](https://your-jira-domain.atlassian.net/browse/${ticket})`;
+              });
+            } else {
+              commentBody = "No Jira tickets found in the commit messages.";
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
