@@ -28,9 +28,8 @@ jobs:
           for TICKET in $TICKETS; do
             COMMENT="${COMMENT}\n* [${TICKET}](https://your-jira-domain.atlassian.net/browse/${TICKET})"
           done
+          COMMENT=$(echo -e "$COMMENT")
           echo "$COMMENT"
-          gh pr comment ${{ github.event.pull_request.number }} --body <<-EOF
-          $COMMENT
-          EOF
+          gh pr comment ${{ github.event.pull_request.number }} --body $COMMENT
         env:
           GH_TOKEN: ${{ github.token }}
