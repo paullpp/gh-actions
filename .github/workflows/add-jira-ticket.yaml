@@ -29,8 +29,10 @@ jobs:
 
           if [ -z "$TICKETS" ]; then
             echo "No Jira tickets found."
+            echo "::set-output name=tickets::"
           else
             echo "Tickets found: $TICKETS"
+            echo "::set-output name=tickets::$TICKETS"
           fi
 
       # Step 3: Add a comment to the PR with Jira ticket links
