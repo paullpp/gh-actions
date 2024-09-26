@@ -1,30 +1,31 @@
-name: Add Jira Tickets to PR Comment
+name: Add Jira Tickets to PR Description
 
 on:
   pull_request:
     types: [opened, synchronize]
 
 jobs:
-  comment:
+  update-pr-description:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the repository to access the commit history
+      # Step 1: Checkout repository with full history
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-         fetch-depth: 0
+          fetch-depth: 0  # Fetch the full history to access both branches
 
       # Step 2: Extract Jira tickets from commit messages
       - name: Parse Jira ticket numbers from new commits
         id: extract-tickets
         run: |
-          BASE_BRANCH=${{ github.base_ref }}
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
+
+          # Fetch all branches
+          git fetch --all
 
           # Get new commits between base and head branches
-          TICKETS=$(git log origin/$BASE_BRANCH...HEAD --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
-          # TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
-
-          echo $TICKETS
+          TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -oE 'XYZ-[0-9]+' | sort -u | tr '\n' ' ')
 
           if [ -z "$TICKETS" ]; then
             echo "No Jira tickets found."
@@ -34,26 +35,30 @@ jobs:
             echo "::set-output name=tickets::$TICKETS"
           fi
 
-      # Step 3: Add a comment to the PR with Jira ticket links
+      # Step 3: Add Jira ticket links to the PR description
       - uses: actions/github-script@v6
         with:
           script: |
-            const tickets = `${{ steps.extract-tickets.outputs.tickets }}`.trim();
-
-            let commentBody = "The following Jira tickets are referenced in this PR:";
+            const tickets = '${{ steps.extract-tickets.outputs.tickets }}'.trim();
 
             if (tickets) {
               const ticketArray = tickets.split(" ");
-              ticketArray.forEach(ticket => {
-                commentBody += `\n* [${ticket}](https://your-jira-domain.atlassian.net/browse/${ticket})`;
+              let ticketLinks = ticketArray.map(ticket => `* [${ticket}](https://your-jira-domain.atlassian.net/browse/${ticket})`).join('\n');
+
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+              });
+
+              const updatedBody = `${pullRequest.body}\n\nThe following Jira tickets are referenced in this PR:\n${ticketLinks}`;
+
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                body: updatedBody,
               });
             } else {
-              commentBody = "No Jira tickets found in the commit messages.";
+              console.log('No Jira tickets found to add to the PR description.');
             }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody
-            });
