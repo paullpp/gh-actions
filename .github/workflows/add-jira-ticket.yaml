@@ -11,6 +11,8 @@ jobs:
       # Step 1: Check out the repository to access the commit history
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+         fetch-depth: 0
 
       # Step 2: Extract Jira tickets from commit messages
       - name: Parse Jira ticket numbers from new commits
@@ -20,8 +22,10 @@ jobs:
           # HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
 
           # Get new commits between base and head branches
-          # TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
-          TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+          TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+          # TICKETS=$(git log --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+
+          echo $TICKETS
 
           if [ -z "$TICKETS" ]; then
             echo "No Jira tickets found."
