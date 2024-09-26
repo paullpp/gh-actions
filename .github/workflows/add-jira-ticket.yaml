@@ -26,7 +26,7 @@ jobs:
           TICKETS="${{ steps.extract-tickets.outputs.tickets }}"
           COMMENT="The following Jira tickets are referenced in this PR:\n"
           for TICKET in $TICKETS; do
-            COMMENT+="* ticket number ${TICKET}\n"
+            COMMENT="${COMMENT}\n* [${TICKET}](https://your-jira-domain.atlassian.net/browse/${TICKET})"
           done
           echo "$COMMENT"
           gh pr comment {{ github.event.pull_request.number }} --body "$COMMENT"
