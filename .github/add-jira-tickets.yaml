@@ -1,0 +1,34 @@
+name: Add Jira Tickets
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  add-jira-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Parse Jira ticket numbers from new commits
+        id: extract-tickets
+        run: |
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH=${{ github.event.pull_request.head.ref }}
+          
+          TICKETS=$(git log ${BASE_BRANCH}..${HEAD_BRANCH} --pretty=format:"%s" | grep -o 'XYZ-[0-9]\+' | sort -u | tr '\n' ' ')
+
+      - name: Add comment to PR with Jira ticket links
+        run: |
+          TICKETS="${{ steps.extract-tickets.outputs.tickets }}"
+          COMMENT="The following Jira tickets are referenced in this PR:\n"
+          for TICKET in $TICKETS; do
+            COMMENT+="* ticket number ${TICKET}\n"
+          done
+          echo "$COMMENT"
+          gh pr comment {{ github.event.pull_request.number }} --body "$COMMENT"
+        env:
+          GH_TOKEN: ${{ github.token }}
